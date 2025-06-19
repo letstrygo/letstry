@@ -2,15 +2,23 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Launch Go Program",
+            "name": "Run Letstry",
             "type": "go",
             "request": "launch",
             "mode": "auto",
-            "program": "${workspaceFolder}/cmd/letstry/main.go",
-            "args": ["help"],
+            "program": "${workspaceFolder}/main.go",
+            "args": ["${input:programArgs}"],
             "env": {
                 "DEBUGGER_ATTACHED": "true"
             },
+        }
+    ],
+    "inputs": [
+        {
+            "id": "programArgs",
+            "type": "promptString",
+            "description": "Enter program arguments (space-separated)",
+            "default": "help"
         }
     ]
 }
