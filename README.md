@@ -5,6 +5,18 @@
 
 letstry is a powerful tool designed to provide temporary work-spaces for developers, built in Golang. It allows you to quickly create new projects, save them as templates, and export them to a more permanent location.
 
+## Index
+
+- [Installation](#installation)
+- [Usage](#usage)
+    - [Create a new session](#creating-a-new-session)
+    - [Export a session](#exporting-a-session)
+    - [List active sessions](#listing-active-sessions)
+    - [Managing Templates](#managing-templates)
+    - [Configuration](#configuration)
+- [Contributing](#contributing)
+- [Development](#development)
+
 ## Installation
 
 Letstry requires Go to be installed on your system. If you do not have Go installed, you can download it from the [official website](https://golang.org/dl/).
@@ -12,13 +24,22 @@ Letstry requires Go to be installed on your system. If you do not have Go instal
 Once Go is installed, to install letstry, run the following command:
 
 ```sh
-$ go install github.com/letstrygo/letstry/cmd/letstry@latest
+go install github.com/letstrygo/letstry@latest
 ```
 
-If you'd rather use the `lt` alias, you can install it using the following command:
+### Optional: Configure `lt` alias
 
+letstry is easier to use when you configure the `lt` alias. This allows you to type `lt` instead of typing out the full `letstry` command when you use it.
+
+**Windows Powershell**
+> Assuming you already have `$profile` configured
+```powershell
+"`nset-alias lt letstry" | out-file -append -encoding utf8 $profile; . $profile
+```
+
+**Bash**
 ```sh
-$ go install github.com/letstrygo/letstry/cmd/lt@latest
+echo "alias lt='letstry'" >> ~/.bashrc && source ~/.bashrc
 ```
 
 ## Usage
@@ -129,14 +150,12 @@ We welcome contributions to improve letstry. If you have suggestions or bug repo
 To install letstry for development, run the following command from the root of the project:
 
 ```sh
-$ go install ./...
+$ go install ./
 ```
 
 **Attaching a Debugger in VSCode**
 
-To attach a debugger in VSCode you will first need to configure the command line arguments with which you wish the application to be launched. You can do this in the [./.vscode/launch.json](./.vscode/launch.json) file.
-
-Then open the Run and Debug tab in VSCode (Ctrl+Shift+D on Windows) and select the `Launch Go Program` configuration.
+Open the "Run and Debug" tab in VSCode (Ctrl+Shift+D on Windows) and select the `Run Letstry` configuration.
 
 ## License
 
