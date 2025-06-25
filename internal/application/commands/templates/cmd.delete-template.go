@@ -18,9 +18,13 @@ func DeleteTemplateCommand() cli.Command {
 		Name:             commands.CommandDeleteTemplate.String(),
 		ShortDescription: "Delete a template",
 		Description:      "Delete a template by name.",
+		Aliases: []string{
+			// For backwards compatibility
+			"delete-template",
+		},
 		Arguments: []cli.Argument{
 			{
-				Name:        "name",
+				Name:        "template-name",
 				Description: "The name of the template to delete.",
 				Required:    true,
 			},

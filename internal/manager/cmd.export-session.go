@@ -34,7 +34,7 @@ func (s *manager) ExportSession(ctx context.Context, arg ExportSessionArguments)
 		return fmt.Errorf("path %s already exists", absPath)
 	}
 
-	logger.Printf("exporting session %s to %s\n", session.FormattedID(), absPath)
+	logger.Printf("exporting session %s to %s\n", session.ID.FormattedString(), absPath)
 	if err := os.MkdirAll(absPath, 0755); err != nil {
 		return fmt.Errorf("failed to create directory: %w", err)
 	}

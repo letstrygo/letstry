@@ -8,11 +8,11 @@ import (
 	"github.com/letstrygo/letstry/internal/util/identifier"
 )
 
-type CleanSessionArguments struct {
+type PruneSessionArguments struct {
 	SessionID identifier.ID
 }
 
-func (s *manager) CleanSession(ctx context.Context, args CleanSessionArguments) error {
+func (s *manager) PruneSession(ctx context.Context, args PruneSessionArguments) error {
 	logger, err := logging.LoggerFromContext(ctx)
 	if err != nil {
 		return err
@@ -24,9 +24,9 @@ func (s *manager) CleanSession(ctx context.Context, args CleanSessionArguments) 
 	}
 
 	if session.IsActive() {
-		return fmt.Errorf("cannot clean session: %s (directory still being accessed)", session.FormattedID())
+		return fmt.Errorf("cannot prune session: %s (directory still being accessed)", session.ID.FormattedString())
 	}
 
-	logger.Printf("cleaning inactive session: %s\n", session.FormattedID())
+	logger.Printf("pruning inactive session: %s\n", session.ID.FormattedString())
 	return s.removeSession(ctx, session.ID)
 }

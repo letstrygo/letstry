@@ -52,13 +52,14 @@ func NewApplication(ctx context.Context) *Application {
 		session_commands.NewSessionCommand(),
 		session_commands.ListSessionsCommand(),
 		session_commands.ExportSessionCommand(),
-		session_commands.CleanCommand(),
-		session_commands.CleanAllCommand(),
+		session_commands.ShowCommand(),
+		session_commands.PruneSessionsCommand(),
 
 		template_commands.ListTemplatesCommand(),
 		template_commands.SaveTemplateCommand(),
 		template_commands.ImportTemplate(),
 		template_commands.DeleteTemplateCommand(),
+		template_commands.UpdateTemplateCommand(),
 
 		editor_commands.ListEditorsCommand(),
 		editor_commands.SetEditorCommand(),
