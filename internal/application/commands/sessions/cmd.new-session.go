@@ -5,6 +5,7 @@ import (
 
 	"github.com/letstrygo/letstry/internal/application/commands"
 	"github.com/letstrygo/letstry/internal/cli"
+	"github.com/letstrygo/letstry/internal/logging"
 	"github.com/letstrygo/letstry/internal/manager"
 )
 
@@ -32,12 +33,19 @@ func NewSessionCommand() cli.Command {
 				return err
 			}
 
-			_, err = mgr.CreateSession(ctx, manager.CreateSessionArguments{
+			logger, err := logging.LoggerFromContext(ctx)
+			if err != nil {
+				return err
+			}
+
+			session, err := mgr.CreateSession(ctx, manager.CreateSessionArguments{
 				Source: source,
 			})
 			if err != nil {
 				return err
 			}
+
+			logger.Printf("session created: %s\n", session.String())
 
 			return nil
 		},

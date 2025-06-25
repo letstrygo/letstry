@@ -54,7 +54,7 @@ func (s *manager) SaveSessionAsTemplate(ctx context.Context, arg SaveSessionAsTe
 		}
 	}
 
-	logger.Printf("creating template %s from session %s\n", template.String(), session.FormattedID())
+	logger.Printf("creating template %s from session %s\n", template.String(), session.ID.FormattedString())
 
 	err = s.storage.CreateDirectory(template.StoragePath())
 	if err != nil {

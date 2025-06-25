@@ -9,12 +9,12 @@ import (
 	"github.com/letstrygo/letstry/internal/util/identifier"
 )
 
-type sessionSource struct {
+type Source struct {
 	SourceType SessionSourceType `json:"sourceType"`
 	Value      string            `json:"value"`
 }
 
-func (s sessionSource) String() string {
+func (s Source) String() string {
 	switch s.SourceType {
 	case SessionSourceTypeBlank:
 		return fmt.Sprintf("[%s]", s.SourceType)
@@ -23,7 +23,7 @@ func (s sessionSource) String() string {
 	}
 }
 
-func (s sessionSource) FormattedString() string {
+func (s Source) FormattedValue() string {
 	var colorWrapper func(format string, a ...interface{}) string = color.WhiteString
 
 	switch s.SourceType {
@@ -44,7 +44,7 @@ type Session struct {
 	ID       identifier.ID  `json:"id"`
 	Location string         `json:"location"`
 	PID      int            `json:"pid"`
-	Source   sessionSource  `json:"source"`
+	Source   Source         `json:"source"`
 	Editor   editors.Editor `json:"editor"`
 }
 
@@ -53,13 +53,9 @@ func (s *Session) IsActive() bool {
 }
 
 func (s *Session) String() string {
-	src := s.Source.FormattedString()
-	id := s.FormattedID()
+	src := s.Source.FormattedValue()
+	id := s.ID.FormattedString()
 	editor := color.BlueString("(%s)", s.Editor.Name)
 
 	return fmt.Sprintf("id=%s, editor=%s, src=%s", id, editor, src)
-}
-
-func (s *Session) FormattedID() string {
-	return color.HiGreenString(s.ID.String())
 }

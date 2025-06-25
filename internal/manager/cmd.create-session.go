@@ -13,7 +13,6 @@ import (
 	"github.com/letstrygo/letstry/internal/config"
 	"github.com/letstrygo/letstry/internal/config/editors"
 	"github.com/letstrygo/letstry/internal/environment"
-	"github.com/letstrygo/letstry/internal/logging"
 	"github.com/letstrygo/letstry/internal/util/identifier"
 	"github.com/otiai10/copy"
 )
@@ -28,11 +27,6 @@ func (s *manager) CreateSession(ctx context.Context, args CreateSessionArguments
 		err       error
 	)
 
-	sourceType, err := s.GetSessionSourceType(ctx, args.Source)
-	if err != nil {
-		return zeroValue, err
-	}
-
 	cfg, err := config.GetConfig()
 	if err != nil {
 		return zeroValue, err
@@ -43,9 +37,9 @@ func (s *manager) CreateSession(ctx context.Context, args CreateSessionArguments
 		return zeroValue, err
 	}
 
-	logger, err := logging.LoggerFromContext(ctx)
+	src, err := s.parseSessionSource(ctx, args.Source)
 	if err != nil {
-		return zeroValue, err
+		return zeroValue, fmt.Errorf("failed to parse session source: %v", err)
 	}
 
 	// Create temporary directory
@@ -54,20 +48,10 @@ func (s *manager) CreateSession(ctx context.Context, args CreateSessionArguments
 		return zeroValue, fmt.Errorf("failed to create temporary directory: %v", err)
 	}
 
-	logger.Printf("found source type: %s\n", sourceType.FormattedString())
+	id := identifier.NewID()
 
-	// Handle "With" arguments
-	switch sourceType {
-	case SessionSourceTypeBlank:
-		// Do nothing
-	case SessionSourceTypeDirectory:
-		err = s.fillWorkspaceFromDirectory(ctx, args.Source, tempDir)
-	case SessionSourceTypeRepository:
-		err = s.fillWorkspaceFromRepository(ctx, args.Source, tempDir)
-	case SessionSourceTypeTemplate:
-		err = s.fillWorkspaceFromTemplate(ctx, args.Source, tempDir)
-	}
-
+	// Fill workspace based on source type.
+	err = s.fillWorkspace(ctx, src, tempDir)
 	if err != nil {
 		return zeroValue, err
 	}
@@ -78,13 +62,13 @@ func (s *manager) CreateSession(ctx context.Context, args CreateSessionArguments
 		return zeroValue, err
 	}
 
-	// Create the session
-	session, err := s.persistSession(ctx, sourceType, cmd, editor, args.Source, tempDir)
+	// Cache the session in the file system.
+	session, err := s.cacheSession(ctx, id, cmd, editor, src, tempDir)
 	if err != nil {
 		return zeroValue, err
 	}
 
-	// Monitor session
+	// Monitor session, automatically purging it from the cache once closed.
 	err = s.monitor(ctx, session)
 
 	return *session, err
@@ -96,14 +80,7 @@ func (s *manager) monitor(ctx context.Context, session *Session) error {
 		return err
 	}
 
-	logger, err := logging.LoggerFromContext(ctx)
-	if err != nil {
-		return err
-	}
-
 	if appEnvironment.DebuggerAttached {
-		logger.Printf("skipping monitor process for session %s (debugger attached)\n", session.FormattedID())
-		logger.Printf("starting monitor session for session %s with delay %v\n", session.FormattedID(), session.Editor.ProcessCaptureDelay)
 		err = s.MonitorSession(ctx, MonitorSessionArguments{
 			Delay:        session.Editor.ProcessCaptureDelay,
 			TrackingType: session.Editor.TrackingType,
@@ -116,37 +93,38 @@ func (s *manager) monitor(ctx context.Context, session *Session) error {
 	} else {
 		// Call this application again, but start it in the background as it's own process.
 		// This will allow the user to continue using the current terminal session.
-		logger.Printf("starting monitor session for session %s with delay %v\n", session.FormattedID(), session.Editor.ProcessCaptureDelay)
 		cmd := exec.Command(os.Args[0], "monitor", fmt.Sprintf("%v", session.Editor.ProcessCaptureDelay), session.Location, fmt.Sprintf("%v", session.PID), session.Editor.TrackingType.String())
 		err = cmd.Start()
 		if err != nil {
 			return fmt.Errorf("failed to start monitor process: %v", err)
 		}
-		logger.Printf("monitor process started with PID %v\n", cmd.Process.Pid)
-		logger.Printf("session created: %s\n", session.String())
 	}
 
 	return nil
 }
 
-func (s *manager) persistSession(ctx context.Context, sourceType SessionSourceType, cmd *exec.Cmd, editor editors.Editor, source string, tempDir string) (*Session, error) {
-	logger, err := logging.LoggerFromContext(ctx)
+func (s *manager) parseSessionSource(ctx context.Context, source string) (Source, error) {
+	var zeroValue Source
+
+	sourceType, err := s.GetSessionSourceType(ctx, source)
 	if err != nil {
-		return nil, err
+		return zeroValue, err
 	}
 
+	return Source{sourceType, source}, nil
+}
+
+func (s *manager) cacheSession(ctx context.Context, id identifier.ID, cmd *exec.Cmd, editor editors.Editor, source Source, tempDir string) (*Session, error) {
 	session := Session{
-		ID:       identifier.NewID(),
+		ID:       id,
 		Location: tempDir,
 		PID:      cmd.Process.Pid,
-		Source:   sessionSource{SourceType: sourceType, Value: source},
+		Source:   source,
 		Editor:   editor,
 	}
 
-	logger.Printf("persisting session %s\n", session.FormattedID())
-
 	// Save the session
-	err = s.addSession(ctx, session)
+	err := s.addSession(ctx, session)
 	if err != nil {
 		return nil, err
 	}
@@ -155,16 +133,10 @@ func (s *manager) persistSession(ctx context.Context, sourceType SessionSourceTy
 }
 
 func (s *manager) launchEditor(ctx context.Context, editor editors.Editor, tempDir string) (*exec.Cmd, error) {
-	logger, err := logging.LoggerFromContext(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	logger.Printf("launching editor %s\n", editor.String())
 	cfgArgs := strings.Split(editor.Args, " ")
 	cmdArgs := append(cfgArgs, tempDir)
 	cmd := exec.Command(editor.ExecPath, cmdArgs...)
-	err = cmd.Start()
+	err := cmd.Start()
 	if err != nil {
 		return nil, fmt.Errorf("failed to run editor: %v", err)
 	}
@@ -172,22 +144,36 @@ func (s *manager) launchEditor(ctx context.Context, editor editors.Editor, tempD
 	return cmd, nil
 }
 
-func (s *manager) fillWorkspaceFromTemplate(ctx context.Context, source string, tempDir string) error {
-	logger, err := logging.LoggerFromContext(ctx)
-	if err != nil {
-		return err
+func (s *manager) fillWorkspace(ctx context.Context, source Source, tempDir string) error {
+	switch source.SourceType {
+	case SessionSourceTypeBlank:
+		return nil
+	case SessionSourceTypeDirectory:
+		return s.fillWorkspaceFromDirectory(ctx, source, tempDir)
+	case SessionSourceTypeRepository:
+		return s.fillWorkspaceFromRepository(ctx, source, tempDir)
+	case SessionSourceTypeTemplate:
+		return s.fillWorkspaceFromTemplate(ctx, source, tempDir)
 	}
 
-	logger.Printf("reading from template %s\n", source)
+	return ErrInvalidSessionSource
+}
 
+func (s *manager) fillWorkspaceFromTemplate(ctx context.Context, source Source, tempDir string) error {
 	// Check if the specified template exists.
-	template, err := s.GetTemplate(ctx, source)
+	template, err := s.GetTemplate(ctx, source.Value)
 	if err != nil {
 		return err
 	}
 
 	// Copy the template to the temporary directory
-	err = copy.Copy(template.AbsolutePath(ctx), tempDir)
+	err = copy.Copy(template.AbsolutePath(ctx), tempDir, copy.Options{
+		Skip: func(srcinfo os.FileInfo, src, dest string) (bool, error) {
+			// Don't include repository information if the source
+			// is a git repository.
+			return srcinfo.IsDir() && srcinfo.Name() == ".git", nil
+		},
+	})
 	if err != nil {
 		return fmt.Errorf("failed to load template %s: %s", source, err)
 	}
@@ -195,16 +181,9 @@ func (s *manager) fillWorkspaceFromTemplate(ctx context.Context, source string, 
 	return nil
 }
 
-func (s *manager) fillWorkspaceFromRepository(ctx context.Context, source string, tempDir string) error {
-	logger, err := logging.LoggerFromContext(ctx)
-	if err != nil {
-		return err
-	}
-
-	logger.Printf("cloning repository %s\n", source)
-
-	_, err = git.PlainClone(tempDir, false, &git.CloneOptions{
-		URL: source,
+func (s *manager) fillWorkspaceFromRepository(ctx context.Context, source Source, tempDir string) error {
+	_, err := git.PlainClone(tempDir, false, &git.CloneOptions{
+		URL: source.Value,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to clone repository: %v", err)
@@ -213,15 +192,8 @@ func (s *manager) fillWorkspaceFromRepository(ctx context.Context, source string
 	return nil
 }
 
-func (s *manager) fillWorkspaceFromDirectory(ctx context.Context, source string, tempDir string) error {
-	logger, err := logging.LoggerFromContext(ctx)
-	if err != nil {
-		return err
-	}
-
-	logger.Printf("copying data from source directory %v", source)
-
-	absPath, err := filepath.Abs(source)
+func (s *manager) fillWorkspaceFromDirectory(ctx context.Context, source Source, tempDir string) error {
+	absPath, err := filepath.Abs(source.Value)
 	if err != nil {
 		return fmt.Errorf("failed to get absolute path: %v", err)
 	}
