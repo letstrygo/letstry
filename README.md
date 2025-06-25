@@ -110,7 +110,7 @@ $ lt templates
 
 **Deleting a Template**
 
-To delete a template, use the `lt delete-template` command.
+To delete a template, use the `lt delete` command.
 
 ```sh
 $ lt delete <name>
