@@ -87,7 +87,7 @@ Templates are a powerful feature of letstry. They allow you to save a project as
 To save an active session as a template, use the `lt save` command from within the sessions directory.
 
 ```sh
-$ lt save [name]
+$ lt save [template-name]
 ```
 
 If the session was initially created from an existing template, you can omit the name argument and the original template will be updated with the new session.
@@ -98,6 +98,14 @@ You can easily import git repositories as templates using the `lt import` comman
 
 ```sh
 $ lt import <template-name> <repository-url>
+```
+
+**Updating Templates**
+
+If you've imported a template from a git repository using `lt import`, or if the template is stored as a git repository (i.e. contains a `.git` directory), you can use the `lt update` command to update the template with the latest version from it's associated git repository.
+
+```sh
+$ lt update <template-name>
 ```
 
 **Listing Templates**
@@ -113,7 +121,7 @@ $ lt templates
 To delete a template, use the `lt delete` command.
 
 ```sh
-$ lt delete <name>
+$ lt delete <template-name>
 ```
 
 ## Configuration
