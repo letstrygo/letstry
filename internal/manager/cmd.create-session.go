@@ -1,13 +1,17 @@
 package manager
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/letstrygo/letstry/internal/config"
@@ -15,6 +19,7 @@ import (
 	"github.com/letstrygo/letstry/internal/environment"
 	"github.com/letstrygo/letstry/internal/util/identifier"
 	"github.com/otiai10/copy"
+	"github.com/samber/lo"
 )
 
 type CreateSessionArguments struct {
@@ -115,21 +120,104 @@ func (s *manager) parseSessionSource(ctx context.Context, source string) (Source
 }
 
 func (s *manager) cacheSession(ctx context.Context, id identifier.ID, cmd *exec.Cmd, editor editors.Editor, source Source, tempDir string) (*Session, error) {
+	pid, err := s.locatePid(cmd.Process.Pid)
+	if err != nil {
+		return nil, err
+	}
+
 	session := Session{
 		ID:       id,
 		Location: tempDir,
-		PID:      cmd.Process.Pid,
+		PID:      pid,
 		Source:   source,
 		Editor:   editor,
 	}
 
 	// Save the session
-	err := s.addSession(ctx, session)
+	err = s.addSession(ctx, session)
 	if err != nil {
 		return nil, err
 	}
 
 	return &session, nil
+}
+
+// locatePid will attempt to locate the PID of the most recent vscode process
+// by assuming that vscode processes will have the ps cmd of `/usr/share/code/code`
+func (s *manager) locatePid(pid int) (int, error) {
+	// This functionality is only supported on linux.
+	if runtime.GOOS != "linux" {
+		return pid, nil
+	}
+
+	time.Sleep(2 * time.Second)
+
+	psCmd := exec.Command(
+		"ps",
+		"-eo", "pid,etimes,cmd",
+		"--sort=etimes",
+	)
+
+	grepCmd := exec.Command(
+		"grep",
+		"/usr/share/code/code",
+	)
+
+	// Pipe psCmd's stdout to grepCmd's stdin
+	psOut, err := psCmd.StdoutPipe()
+	if err != nil {
+		panic(err)
+	}
+	grepCmd.Stdin = psOut
+
+	// Capture grepCmd's output
+	var out bytes.Buffer
+	grepCmd.Stdout = &out
+
+	// Start psCmd
+	if err := psCmd.Start(); err != nil {
+		return pid, err
+	}
+
+	// Start grepCmd
+	if err := grepCmd.Start(); err != nil {
+		return pid, err
+	}
+
+	// Wait for psCmd to finish
+	if err := psCmd.Wait(); err != nil {
+		return pid, err
+	}
+
+	// Wait for grepCmd to finish
+	if err := grepCmd.Wait(); err != nil {
+		return pid, err
+	}
+
+	output := out.String()
+
+	// Split output into lines and trim whitespace
+	lines := lo.FilterMap(
+		strings.Split(output, "\n"),
+		func(line string, _ int) (string, bool) {
+			trimmed := strings.TrimSpace(line)
+			return trimmed, trimmed != ""
+		},
+	)
+
+	// Get the second line (index 1), if it exists
+	if len(lines) > 1 {
+		fields := strings.Fields(lines[1])
+		if len(fields) > 0 {
+			_pid, err := strconv.Atoi(fields[0])
+			if err != nil {
+				return pid, err
+			}
+			return _pid, nil
+		}
+	}
+
+	return pid, nil
 }
 
 func (s *manager) launchEditor(ctx context.Context, editor editors.Editor, tempDir string) (*exec.Cmd, error) {

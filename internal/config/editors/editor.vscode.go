@@ -18,12 +18,17 @@ func VSCodeEditor() Editor {
 		panic(fmt.Errorf("failed to get current user: %v", err))
 	}
 
-	var vsCodePath string
+	var (
+		vsCodePath   string
+		trackingType TrackingType = TrackingTypeFileAccess
+	)
+
 	switch os := runtime.GOOS; os {
 	case "darwin":
 		vsCodePath = filepath.Join("/", "Applications", "Visual Studio Code.app", "Contents", "Resources", "app", "bin", "code")
 	case "linux":
-		vsCodePath = filepath.Join(currentUser.HomeDir, "bin", "code")
+		vsCodePath = filepath.Join("/", "usr", "bin", "code")
+		trackingType = TrackingTypeProcess
 	case "windows":
 		vsCodePath = filepath.Join(currentUser.HomeDir, "AppData", "Local", "Programs", "Microsoft VS Code", "Code.exe")
 	}
@@ -33,6 +38,6 @@ func VSCodeEditor() Editor {
 		ExecPath:            vsCodePath,
 		Args:                "-n",
 		ProcessCaptureDelay: time.Second * 5,
-		TrackingType:        TrackingTypeFileAccess,
+		TrackingType:        trackingType,
 	}
 }
