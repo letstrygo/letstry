@@ -3,7 +3,7 @@
 [![Sponsor Me!](https://img.shields.io/badge/%F0%9F%92%B8-Sponsor%20Me!-blue)](https://github.com/sponsors/nathan-fiscaletti)
 [![Go Report Card](https://goreportcard.com/badge/github.com/letstrygo/letstry)](https://goreportcard.com/report/github.com/letstrygo/letstry)
 
-letstry is a powerful tool designed to provide temporary work-spaces for developers, built in Golang. It allows you to quickly create new projects, save them as templates, and export them to a more permanent location.
+**letstry** is a lightweight yet powerful tool designed to give developers **temporary workspaces** directly within their preferred IDE. Written in Go, it lets you spin up new projects quickly, save them as templates, and export them to a permanent location—**all from your VSCode terminal.** In addition to managing your own templates, letstry also supports a public repository for templates, making it easy to discover, share, and use templates from the community.
 
 ## Index
 
@@ -19,28 +19,43 @@ letstry is a powerful tool designed to provide temporary work-spaces for develop
 
 ## Installation
 
-Letstry requires Go to be installed on your system. If you do not have Go installed, you can download it from the [official website](https://golang.org/dl/).
+Directly downloading **letstry** is the best option if you do not have [Golang](https://golang.org/dl/) installed on your system.
 
-Once Go is installed, to install letstry, run the following command:
+![Download Windows Installer](https://img.shields.io/badge/Windows%20Installer%20(x86_64)-blue?label=Download&color=7dccf0)
+![Download macOS Installer](https://img.shields.io/badge/macOS%20Installer%20(arm64)-blue?label=Download&color=f2f2f7)
+![Download Debian Installer](https://img.shields.io/badge/Debian%20Installer%20(x86_64)-blue?label=Download&color=d15a84)
+
+> More download options are available on the [latest release](https://github.com/letstrygo/letstry/releases/latest) page.
+
+### Install using GoLang
+
+If you have [Golang](https://golang.org/dl/) already installed, you can install **letstry** more easily using the `go install` command.
 
 ```sh
 go install github.com/letstrygo/letstry@latest
 ```
 
-### Optional: Configure `lt` alias
+### Build from Source
 
-letstry is easier to use when you configure the `lt` alias. This allows you to type `lt` instead of typing out the full `letstry` command when you use it.
+If you wish to build it from source, you can clone the repository directly.
 
-**Windows Powershell**
-> Assuming you already have `$profile` configured
 ```powershell
-"`nset-alias lt letstry" | out-file -append -encoding utf8 $profile; . $profile
+git clone https://github.com/letstrygo/letstry.git
+cd letstry
+# Run directly
+go run . [... arguments]
+# Or, Build
+go build -o output.exe .
 ```
 
-**Bash**
-```sh
-echo "alias lt='letstry'" >> ~/.bashrc && source ~/.bashrc
-```
+> Note: **If you've installed letstry manually using Golang, or by compiling from source**; after installing you will need to manually enable the `lt` alias.
+> 
+> ```powershell
+> # Windows Powershell
+> "`nset-alias lt letstry" | out-file -append -encoding utf8 $profile; . $profile
+> # Bash (or .zshrc, etc.)
+> echo "alias lt='letstry'" >> ~/.bashrc && source ~/.bashrc
+> ```
 
 ## Usage
 
