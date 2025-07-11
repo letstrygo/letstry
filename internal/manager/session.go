@@ -2,6 +2,7 @@ package manager
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/fatih/color"
 	"github.com/letstrygo/letstry/internal/config/editors"
@@ -33,11 +34,26 @@ func (s Source) FormattedValue() string {
 		colorWrapper = color.HiBlueString
 	case SessionSourceTypeTemplate:
 		colorWrapper = color.HiMagentaString
-	case SessionSourceTypeBlank:
+	default:
 		colorWrapper = color.HiWhiteString
 	}
 
 	return colorWrapper("%s", s.String())
+}
+
+func (s Source) ShortValue() string {
+	switch s.SourceType {
+	case SessionSourceTypeDirectory:
+		fallthrough
+	case SessionSourceTypeRepository:
+		segments := strings.Split(s.Value, "/")
+		last := segments[len(segments)-1]
+		return strings.Replace(last, ".git", "", -1)
+	case SessionSourceTypeTemplate:
+		return s.Value
+	default:
+		return "project"
+	}
 }
 
 type Session struct {

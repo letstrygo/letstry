@@ -43,6 +43,8 @@ func GetConfig() (*Config, error) {
 		return nil, fmt.Errorf("failed to decode config file: %v", err)
 	}
 
+	config.path = store.GetAbsolutePath("config.json")
+
 	return config, nil
 }
 
@@ -68,6 +70,7 @@ func getDefaultConfig() *Config {
 	defaultEditor := editors.DefaultEditors()
 
 	return &Config{
+		RequireExport:     true,
 		DefaultEditorName: defaultEditor[0].Name,
 		AvailableEditors:  editors.DefaultEditors(),
 	}

@@ -8,6 +8,7 @@ func (c CommandName) String() string {
 
 const (
 	CommandVersion        CommandName = "version"
+	CommandPath           CommandName = "path"
 	CommandMonitor        CommandName = "monitor"
 	CommandClean          CommandName = "clean"
 	CommandPruneSessions  CommandName = "prune"

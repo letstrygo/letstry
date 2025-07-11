@@ -23,60 +23,81 @@ import (
 )
 
 type CreateSessionArguments struct {
-	Source string `json:"source"`
+	Source             string `json:"source"`
+	ForceRequireExport bool   `json:"force_require_export"`
 }
 
-func (s *manager) CreateSession(ctx context.Context, args CreateSessionArguments) (Session, error) {
+func (s *manager) CreateSession(ctx context.Context, args CreateSessionArguments) (*Session, error) {
 	var (
-		zeroValue Session
-		err       error
+		err error
 	)
 
 	cfg, err := config.GetConfig()
 	if err != nil {
-		return zeroValue, err
+		return nil, err
 	}
 
 	editor, err := cfg.GetDefaultEditor()
 	if err != nil {
-		return zeroValue, err
+		return nil, err
 	}
 
 	src, err := s.parseSessionSource(ctx, args.Source)
 	if err != nil {
-		return zeroValue, fmt.Errorf("failed to parse session source: %v", err)
+		return nil, fmt.Errorf("failed to parse session source: %v", err)
 	}
 
 	// Create temporary directory
-	tempDir, err := os.MkdirTemp("", "letstry")
-	if err != nil {
-		return zeroValue, fmt.Errorf("failed to create temporary directory: %v", err)
+	projectName := fmt.Sprintf("%v-lt%d", src.ShortValue(), time.Now().Unix())
+	storageDir := filepath.Join(cfg.LTPath, projectName)
+
+	requireExport := cfg.LTPath == "" || cfg.RequireExport || args.ForceRequireExport
+
+	if requireExport {
+		tempDir, err := os.MkdirTemp("", projectName)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create temporary directory: %v", err)
+		}
+
+		storageDir = tempDir
+	} else {
+		_, err = os.Stat(storageDir)
+		if !os.IsNotExist(err) {
+			return nil, fmt.Errorf("failed to create project directory: directory already exists")
+		}
+
+		err = os.MkdirAll(storageDir, 0660)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create project directory: %v", err)
+		}
 	}
 
 	id := identifier.NewID()
 
 	// Fill workspace based on source type.
-	err = s.fillWorkspace(ctx, src, tempDir)
+	err = s.fillWorkspace(ctx, src, storageDir)
 	if err != nil {
-		return zeroValue, err
+		return nil, err
 	}
 
 	// Launch the editor
-	cmd, err := s.launchEditor(ctx, editor, tempDir)
+	cmd, err := s.launchEditor(ctx, editor, storageDir)
 	if err != nil {
-		return zeroValue, err
-	}
-
-	// Cache the session in the file system.
-	session, err := s.cacheSession(ctx, id, cmd, editor, src, tempDir)
-	if err != nil {
-		return zeroValue, err
+		return nil, err
 	}
 
 	// Monitor session, automatically purging it from the cache once closed.
-	err = s.monitor(ctx, session)
+	if requireExport {
+		// Cache the session in the file system.
+		session, err := s.prepareMonitor(ctx, id, cmd, editor, src, storageDir)
+		if err != nil {
+			return nil, err
+		}
 
-	return *session, err
+		return session, s.monitor(ctx, session)
+	}
+
+	return nil, nil
 }
 
 func (s *manager) monitor(ctx context.Context, session *Session) error {
@@ -119,7 +140,7 @@ func (s *manager) parseSessionSource(ctx context.Context, source string) (Source
 	return Source{sourceType, source}, nil
 }
 
-func (s *manager) cacheSession(ctx context.Context, id identifier.ID, cmd *exec.Cmd, editor editors.Editor, source Source, tempDir string) (*Session, error) {
+func (s *manager) prepareMonitor(ctx context.Context, id identifier.ID, cmd *exec.Cmd, editor editors.Editor, source Source, storageDir string) (*Session, error) {
 	pid, err := s.locatePid(cmd.Process.Pid)
 	if err != nil {
 		return nil, err
@@ -127,7 +148,7 @@ func (s *manager) cacheSession(ctx context.Context, id identifier.ID, cmd *exec.
 
 	session := Session{
 		ID:       id,
-		Location: tempDir,
+		Location: storageDir,
 		PID:      pid,
 		Source:   source,
 		Editor:   editor,
