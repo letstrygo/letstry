@@ -25,7 +25,7 @@ func (s Source) String() string {
 }
 
 func (s Source) FormattedValue() string {
-	var colorWrapper func(format string, a ...interface{}) string = color.WhiteString
+	var colorWrapper func(format string, a ...any) string
 
 	switch s.SourceType {
 	case SessionSourceTypeDirectory:
