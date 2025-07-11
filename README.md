@@ -106,9 +106,6 @@ Creating a new session or project with letstry is simple and efficient. Use the 
 $ lt new
 ```
 
-> [!IMPORTANT]
-> If `require_export` is enabled in your configuration or if you have not set a custom `projects_path`, when the VSCode window is closed the sessions temporary directory will be deleted. This is the default behavior for letstry. Therefore, you should either export your project using `lt export <path>` or save it as a template using `lt save <template-name>` (these commands must be run from within the sessions directory.)
-
 Lets try sessions can be created from a directory path, a git repository URL, or a template name.
 
 ```sh
@@ -116,6 +113,9 @@ $ lt new <repository-url>
 $ lt new <directory-path>
 $ lt new <template-name>
 ```
+
+> [!IMPORTANT]
+> If `require_export` is enabled in your configuration or if you have not set a custom `projects_path`, when the VSCode window is closed the sessions temporary directory will be deleted. This is the default behavior for letstry. Therefore, you should either export your project using `lt export <path>` or save it as a template using `lt save <template-name>` (these commands must be run from within the sessions directory.)
 
 ### Exporting a Session
 
