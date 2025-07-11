@@ -3,23 +3,23 @@
 [![Sponsor Me!](https://img.shields.io/badge/%F0%9F%92%B8-Sponsor%20Me!-blue)](https://github.com/sponsors/nathan-fiscaletti)
 [![Go Report Card](https://goreportcard.com/badge/github.com/letstrygo/letstry)](https://goreportcard.com/report/github.com/letstrygo/letstry)
 
-letstry is a powerful tool designed to provide temporary work-spaces for developers, built in Golang. It allows you to quickly create new projects, save them as templates, and export them to a more permanent location.
+**letstry** is a lightweight yet powerful tool designed to give developers **templated workspaces** directly within their preferred IDE. Written in Go, it lets you spin up new projects quickly, save them as templates, and export them to a permanent location—**all from your VSCode terminal.**
 
 ## Index
 
 - [Installation](#installation)
 - [Usage](#usage)
-    - [Create a new session](#creating-a-new-session)
+    - [Configuration](#configuration)
+    - [Create a new session or project](#creating-a-new-session-or-project)
     - [Export a session](#exporting-a-session)
     - [List active sessions](#listing-active-sessions)
     - [Managing Templates](#managing-templates)
-    - [Configuration](#configuration)
 - [Contributing](#contributing)
 - [Development](#development)
 
 ## Installation
 
-Letstry requires Go to be installed on your system. If you do not have Go installed, you can download it from the [official website](https://golang.org/dl/).
+**letstry** requires Go to be installed on your system. If you do not have Go installed, you can download it from the [official website](https://golang.org/dl/).
 
 Once Go is installed, to install letstry, run the following command:
 
@@ -44,15 +44,70 @@ echo "alias lt='letstry'" >> ~/.bashrc && source ~/.bashrc
 
 ## Usage
 
-### Creating a new Session
+### Configuration
 
-Creating a new session with letstry is simple and efficient. Use the `lt new` command to initialize a temporary project directory and open it in the default editor. This allows for quick prototyping. If you like the results, you can export the session to a more permanent location or save it as a template. 
+> [!TIP]\
+> You can retrieve the path to the config file using the `lt path config` command. By default, the configuration is stored in `~/.letstry/config.json`.
+
+By default, letstry is set-up as a **temporary workspace manager**. This means calls to `lt new` will result in a temporary workspace being created in your systems temporary directory that will be deleted once it's associated editor window is closed. This behavior can be customized using the `projects_path` and `require_export` configuration fields.
+
+**Windows Config Example**
+
+```jsonc
+{
+    // Projects Path
+    //
+    // The path in which to store projects. By default, letstry
+    // will use a temporary directory.
+    //
+    // If no projects path is set, `require_export` will be
+    // forcibly enabled. This is the default behavior.
+    "projects_path": "",
+
+    // Require Export
+    //
+    // When true:  New projects will be created as letstry sessions.
+    //             These sessions will be automatically deleted once
+    //             the editor window is closed.
+    //
+    // When false: New projects will be stored in `projects_path`
+    //             and will be persisted after the editor window
+    //             is closed. No letstry session will be created.
+    //
+    // You can force `require_export` by passing `--temp` to `lt new`.
+    "require_export": true,
+
+    // Default Editor
+    //
+    // The default editor to use for new sessions/projects.
+    "default_editor": "vscode",
+
+    // Editors
+    //
+    // Available editors for new sessions/projects.
+    "editors": [
+        {
+            "name": "vscode",
+            "run_type": "run",
+            "path": "C:\\Users\\natef\\AppData\\Local\\Programs\\Microsoft VS Code\\Code.exe",
+            "args": "-n",
+            "process_capture_delay": 2000000000,
+            "tracking_type": "file_access"
+        }
+    ]
+}
+```
+
+### Creating a new Session or Project
+
+Creating a new session or project with letstry is simple and efficient. Use the `lt new` command to initialize a new project or session and open it in the default editor.
 
 ```sh
 $ lt new
 ```
 
-If the VSCode window is closed, the temporary directory will be deleted. Therefore, you should either export your project using `lt export <path>` or save it as a template using `lt save <template-name>`.
+> [!IMPORTANT]
+> If `require_export` is enabled in your configuration or if you have not set a custom `projects_path`, when the VSCode window is closed the sessions temporary directory will be deleted. This is the default behavior for letstry. Therefore, you should either export your project using `lt export <path>` or save it as a template using `lt save <template-name>` (these commands must be run from within the sessions directory.)
 
 Lets try sessions can be created from a directory path, a git repository URL, or a template name.
 
@@ -122,31 +177,6 @@ To delete a template, use the `lt delete` command.
 
 ```sh
 $ lt delete <template-name>
-```
-
-## Configuration
-
-letstry can be configured using a configuration file. The configuration file is located at `~/.letstry/config.json`.
-
-The config file allows you to specify different editors if you do not use VSCode.
-
-**Windows Config Example**
-
-`~/.letstry/config.json`
-```json
-{
-    "default_editor": "vscode",
-    "editors": [
-        {
-            "name": "vscode",
-            "run_type": "run",
-            "path": "C:\\Users\\natef\\AppData\\Local\\Programs\\Microsoft VS Code\\Code.exe",
-            "args": "-n",
-            "process_capture_delay": 2000000000,
-            "tracking_type": "file_access"
-        }
-    ]
-}
 ```
 
 ## Contributing

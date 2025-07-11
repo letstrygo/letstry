@@ -67,6 +67,7 @@ func NewApplication(ctx context.Context) *Application {
 
 		hidden_commands.MonitorCommand(),
 		general_commands.VersionCommand(),
+		general_commands.PathCommand(),
 	}
 
 	// Initialize the application.
@@ -79,8 +80,8 @@ func NewApplication(ctx context.Context) *Application {
 			},
 
 			Name:             cli.MainName(),
-			ShortDescription: "a powerful tool for creating temporary workspaces",
-			Description:      cli.MainName() + " provides a temporary workspace for you to work in, and then destroys it when you are done.",
+			ShortDescription: "a lightweight tool designed to give developers templated workspaces",
+			Description:      cli.MainName() + " is a lightweight yet powerful tool designed to give developers templated workspaces directly within their preferred IDE. Letting you spin up new projects quickly, save them as templates, and export them to a permanent location—all from your IDEs integrated terminal.",
 		},
 	}
 
