@@ -27,7 +27,7 @@ type loggingCtxKey string
 
 const (
 	loggerCtxKey loggingCtxKey = ".letstry_logger"
-	logPrefix    string        = "letstry: "
+	logPrefix    string        = ""
 )
 
 type LoggerConfig struct {
@@ -55,7 +55,7 @@ func (l *logger) File() *os.File {
 
 func (l *logger) ChildLogger(prefix string) *logger {
 	return &logger{
-		Logger: log.New(l.Writer(), fmt.Sprintf("%s%s: ", logPrefix, prefix), log.LstdFlags),
+		Logger: log.New(l.Writer(), fmt.Sprintf("%s%s: ", logPrefix, prefix), l.Flags()),
 		cfg:    l.cfg,
 	}
 }
@@ -69,7 +69,7 @@ func New(cfg *LoggerConfig) (*logger, error) {
 
 	if cfg == nil || cfg.LogMode == LogModeConsole {
 		// Write output to the console only.
-		internalLogger = log.New(os.Stdout, "letstry: ", log.LstdFlags)
+		internalLogger = log.New(os.Stdout, "", 0)
 	} else {
 		switch cfg.LogMode {
 		case LogModeFile:
@@ -77,9 +77,9 @@ func New(cfg *LoggerConfig) (*logger, error) {
 			internalLogger = log.New(file, fmt.Sprintf("%s%s", logPrefix, cfg.Prefix), log.LstdFlags)
 		case LogModeBoth:
 			file, err = storageManager.OpenFile("ltlog.log")
-			internalLogger = log.New(io.MultiWriter(file, os.Stdout), fmt.Sprintf("%s%s", logPrefix, cfg.Prefix), log.LstdFlags)
+			internalLogger = log.New(io.MultiWriter(file, os.Stdout), fmt.Sprintf("%s%s", logPrefix, cfg.Prefix), 0)
 		case LogModeNone:
-			internalLogger = log.New(io.Discard, "", log.LstdFlags)
+			internalLogger = log.New(io.Discard, "", 0)
 		}
 	}
 

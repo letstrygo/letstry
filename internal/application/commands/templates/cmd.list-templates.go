@@ -36,7 +36,7 @@ func ListTemplatesCommand() cli.Command {
 			}
 
 			for _, template := range templates {
-				logger.Printf("template: %s\n", template.FormattedString(ctx))
+				logger.Printf("%s\n", template.FormattedString(ctx))
 			}
 
 			return nil

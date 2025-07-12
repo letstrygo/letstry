@@ -1,0 +1,2 @@
+- Update to support "projects", (i.e. add a projects command)
+- Update readme before v2

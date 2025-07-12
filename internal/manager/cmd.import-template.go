@@ -3,10 +3,10 @@ package manager
 import (
 	"context"
 	"errors"
-	"fmt"
+	"path/filepath"
 
-	"github.com/go-git/go-git/v5"
 	"github.com/letstrygo/letstry/internal/logging"
+	"github.com/letstrygo/templates"
 )
 
 var (
@@ -21,6 +21,11 @@ type ImportTemplateArguments struct {
 func (s *manager) ImportTemplate(ctx context.Context, args ImportTemplateArguments) (Template, error) {
 	var zeroValue Template
 
+	logger, err := logging.LoggerFromContext(ctx)
+	if err != nil {
+		return zeroValue, err
+	}
+
 	sourceType, err := s.GetSessionSourceType(ctx, args.RepositoryUrl)
 	if err != nil {
 		return zeroValue, err
@@ -30,30 +35,45 @@ func (s *manager) ImportTemplate(ctx context.Context, args ImportTemplateArgumen
 		return zeroValue, ErrInvalidSourceType
 	}
 
-	template := Template(args.TemplateName)
-
-	if s.storage.DirectoryExists(template.StoragePath()) {
-		return zeroValue, fmt.Errorf("template already exists: %s", template.String())
-	}
-
-	err = s.createTemplatesDirectoryIfNotExists()
+	t, err := s.repository.GetTemplateByName(args.TemplateName)
 	if err != nil {
-		return "", err
+		if !errors.Is(err, templates.ErrTemplateNotFound) {
+			return zeroValue, err
+		}
 	}
 
-	logger, err := logging.LoggerFromContext(ctx)
-	if err != nil {
-		return "", err
+	if t != nil {
+		logger.Printf("a template with that name already exists\n")
+		return Template{}, templates.ErrTemplateExists
 	}
 
-	logger.Printf("cloning repository %s\n", args.RepositoryUrl)
-	_, err = git.PlainClone(template.AbsolutePath(ctx), false, &git.CloneOptions{
-		URL: args.RepositoryUrl,
+	storagePath := filepath.Join("templates", args.TemplateName)
+	absoluteStoragePath := s.storage.GetAbsolutePath(storagePath)
+
+	if s.storage.DirectoryExists(absoluteStoragePath) {
+		logger.Printf("a local template directory already exists with that name but is not tracked by the database\n")
+		logger.Printf("please delete this directory to continue\n")
+		logger.Printf("%v\n", absoluteStoragePath)
+
+		return Template{}, ErrUntrackedTemplate
+	}
+
+	err = s.repository.CreateTemplate(templates.CreateTemplate{
+		Name:       args.TemplateName,
+		Source:     args.RepositoryUrl,
+		Type:       templates.TemplateTypeGitRepository,
+		IsOfficial: false,
 	})
 	if err != nil {
-		return zeroValue, fmt.Errorf("failed to clone repository: %v", err)
+		return zeroValue, err
+	}
+
+	template, err := s.GetTemplate(ctx, args.TemplateName)
+	if err != nil {
+		return zeroValue, err
 	}
 
 	logger.Printf("imported template: %s\n", template.FormattedString(ctx))
+
 	return template, nil
 }

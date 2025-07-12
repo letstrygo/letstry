@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/letstrygo/letstry/internal/repository"
 	"github.com/letstrygo/letstry/internal/storage"
 )
 
@@ -20,14 +21,21 @@ var (
 )
 
 type manager struct {
-	storage *storage.Storage
+	storage    *storage.Storage
+	repository *repository.Repository
 }
 
 // ContextWithManager returns a new context with the session manager
-func ContextWithManager(ctx context.Context) context.Context {
+func ContextWithManager(ctx context.Context) (context.Context, error) {
+	repo, err := repository.NewRepository()
+	if err != nil {
+		return ctx, err
+	}
+
 	return context.WithValue(ctx, mgrKey, manager{
-		storage: storage.GetStorage(),
-	})
+		storage:    storage.GetStorage(),
+		repository: repo,
+	}), nil
 }
 
 // GetManager returns the session manager

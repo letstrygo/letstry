@@ -3,56 +3,46 @@ package manager
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
 
 	"github.com/fatih/color"
+	"github.com/letstrygo/templates"
 )
 
-type Template string
+type Template struct {
+	*templates.Template
+}
 
 func (t Template) String() string {
-	return string(t)
+	return string(t.Name)
 }
 
 func (t Template) FormattedString(ctx context.Context) string {
 	name := color.YellowString(t.String())
 
-	var updated string
-
-	absolutePath := t.AbsolutePath(ctx)
-	// Get the last updated date for the directory
-	stat, err := os.Stat(absolutePath)
-	if err != nil {
-		updated = color.RedString("unknown")
-	} else {
-		updated = color.BlueString("(%s)", stat.ModTime().Format("2006-01-02 15:04:05"))
+	typeStr := string(t.Type)
+	switch t.Type {
+	case templates.TemplateTypeGitRepository:
+		typeStr = color.MagentaString(string(t.Type))
+	case templates.TemplateTypeLocal:
+		typeStr = color.HiBlueString(string(t.Type))
 	}
 
-	return fmt.Sprintf("name=%s, updated=%s", name, updated)
-}
+	locationStr := color.BlueString("%5v", t.Source)
 
-func (t Template) AbsolutePath(ctx context.Context) string {
-	sessionMgr, err := GetManager(ctx)
-	if err != nil {
-		panic(err)
-	}
+	// updated = color.BlueString("(%s)", t..Format("2006-01-02 15:04:05"))
+	// TODO: Add UpdatedBy to templates database
 
-	return sessionMgr.storage.GetAbsolutePath(t.StoragePath())
-}
-
-func (t Template) StoragePath() string {
-	return filepath.Join("templates", t.String())
+	detailsStr := fmt.Sprintf("[%v=%v, %v=%v]", color.HiBlackString("type"), typeStr, color.HiBlackString("location"), locationStr)
+	return fmt.Sprintf("%s %v", name, detailsStr)
 }
 
 func (s *manager) GetTemplate(ctx context.Context, name string) (Template, error) {
-	template := Template(name)
-
-	if !s.storage.DirectoryExists(template.StoragePath()) {
-		return "", fmt.Errorf("template with name %s does not exist", name)
+	tmpl, err := s.repository.GetTemplateByName(name)
+	if err != nil {
+		return Template{}, err
 	}
 
-	return template, nil
+	return Template{tmpl}, nil
 }
 
 func (s *manager) createTemplatesDirectoryIfNotExists() error {

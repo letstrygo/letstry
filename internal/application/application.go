@@ -43,7 +43,10 @@ func NewApplication(ctx context.Context) *Application {
 	ctx = environment.ContextWithEnvironment(ctx)
 
 	// Initialize session manager
-	ctx = manager.ContextWithManager(ctx)
+	ctx, err = manager.ContextWithManager(ctx)
+	if err != nil {
+		panic(err)
+	}
 
 	// Initialize logging
 	ctx = logging.ContextWithLogger(ctx, logger)
@@ -59,7 +62,6 @@ func NewApplication(ctx context.Context) *Application {
 		template_commands.SaveTemplateCommand(),
 		template_commands.ImportTemplate(),
 		template_commands.DeleteTemplateCommand(),
-		template_commands.UpdateTemplateCommand(),
 
 		editor_commands.ListEditorsCommand(),
 		editor_commands.SetEditorCommand(),

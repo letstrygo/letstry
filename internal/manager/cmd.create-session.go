@@ -13,11 +13,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v6"
 	"github.com/letstrygo/letstry/internal/config"
 	"github.com/letstrygo/letstry/internal/config/editors"
 	"github.com/letstrygo/letstry/internal/environment"
 	"github.com/letstrygo/letstry/internal/util/identifier"
+	"github.com/letstrygo/templates"
 	"github.com/otiai10/copy"
 	"github.com/samber/lo"
 )
@@ -241,9 +242,9 @@ func (s *manager) locatePid(pid int) (int, error) {
 	return pid, nil
 }
 
-func (s *manager) launchEditor(ctx context.Context, editor editors.Editor, tempDir string) (*exec.Cmd, error) {
+func (s *manager) launchEditor(ctx context.Context, editor editors.Editor, storageDir string) (*exec.Cmd, error) {
 	cfgArgs := strings.Split(editor.Args, " ")
-	cmdArgs := append(cfgArgs, tempDir)
+	cmdArgs := append(cfgArgs, storageDir)
 	cmd := exec.Command(editor.ExecPath, cmdArgs...)
 	err := cmd.Start()
 	if err != nil {
@@ -253,46 +254,53 @@ func (s *manager) launchEditor(ctx context.Context, editor editors.Editor, tempD
 	return cmd, nil
 }
 
-func (s *manager) fillWorkspace(ctx context.Context, source Source, tempDir string) error {
+func (s *manager) fillWorkspace(ctx context.Context, source Source, storageDir string) error {
 	switch source.SourceType {
 	case SessionSourceTypeBlank:
 		return nil
 	case SessionSourceTypeDirectory:
-		return s.fillWorkspaceFromDirectory(ctx, source, tempDir)
+		return s.fillWorkspaceFromDirectory(ctx, source.Value, storageDir)
 	case SessionSourceTypeRepository:
-		return s.fillWorkspaceFromRepository(ctx, source, tempDir)
+		return s.fillWorkspaceFromRepository(ctx, source.Value, storageDir)
 	case SessionSourceTypeTemplate:
-		return s.fillWorkspaceFromTemplate(ctx, source, tempDir)
+		return s.fillWorkspaceFromTemplate(ctx, source, storageDir)
 	}
 
 	return ErrInvalidSessionSource
 }
 
-func (s *manager) fillWorkspaceFromTemplate(ctx context.Context, source Source, tempDir string) error {
+func (s *manager) fillWorkspaceFromTemplate(ctx context.Context, source Source, storageDir string) error {
 	// Check if the specified template exists.
 	template, err := s.GetTemplate(ctx, source.Value)
 	if err != nil {
 		return err
 	}
 
-	// Copy the template to the temporary directory
-	err = copy.Copy(template.AbsolutePath(ctx), tempDir, copy.Options{
-		Skip: func(srcinfo os.FileInfo, src, dest string) (bool, error) {
-			// Don't include repository information if the source
-			// is a git repository.
-			return srcinfo.IsDir() && srcinfo.Name() == ".git", nil
-		},
-	})
-	if err != nil {
-		return fmt.Errorf("failed to load template %s: %s", source, err)
+	switch template.Type {
+	case templates.TemplateTypeGitRepository:
+		return s.fillWorkspaceFromRepository(ctx, template.Source, storageDir)
+	case templates.TemplateTypeLocal:
+		// Copy the template to the temporary directory
+		err = copy.Copy(template.Source, storageDir, copy.Options{
+			Skip: func(srcinfo os.FileInfo, src, dest string) (bool, error) {
+				// Don't include repository information if the source
+				// is a git repository.
+				return srcinfo.IsDir() && srcinfo.Name() == ".git", nil
+			},
+		})
+		if err != nil {
+			return fmt.Errorf("failed to load template %s: %s", source, err)
+		}
+	default:
+		return fmt.Errorf("unknown template type: %v", template.Type)
 	}
 
 	return nil
 }
 
-func (s *manager) fillWorkspaceFromRepository(ctx context.Context, source Source, tempDir string) error {
-	_, err := git.PlainClone(tempDir, false, &git.CloneOptions{
-		URL: source.Value,
+func (s *manager) fillWorkspaceFromRepository(ctx context.Context, source string, storageDir string) error {
+	_, err := git.PlainClone(storageDir, &git.CloneOptions{
+		URL: source,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to clone repository: %v", err)
@@ -301,8 +309,8 @@ func (s *manager) fillWorkspaceFromRepository(ctx context.Context, source Source
 	return nil
 }
 
-func (s *manager) fillWorkspaceFromDirectory(ctx context.Context, source Source, tempDir string) error {
-	absPath, err := filepath.Abs(source.Value)
+func (s *manager) fillWorkspaceFromDirectory(ctx context.Context, source string, storageDir string) error {
+	absPath, err := filepath.Abs(source)
 	if err != nil {
 		return fmt.Errorf("failed to get absolute path: %v", err)
 	}
@@ -312,7 +320,7 @@ func (s *manager) fillWorkspaceFromDirectory(ctx context.Context, source Source,
 	}
 
 	// Copy the directory to the temporary directory
-	err = copy.Copy(absPath, tempDir)
+	err = copy.Copy(absPath, storageDir)
 	if err != nil {
 		return fmt.Errorf("failed to copy directory: %v", err)
 	}
